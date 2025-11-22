@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Catálogo Digital Certis Agro · Edición Ultra Premium</title>
-    <meta name="description" content="Catálogo interactivo de soluciones biológicas para agricultura sustentable.">
+    <title>Catálogo Digital Certis Agro · IA Powered</title>
+    <meta name="description" content="Catálogo interactivo de soluciones biológicas para agricultura sustentable con Asistente IA.">
 
     <!-- Tipografías Premium -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -40,6 +40,9 @@
                     boxShadow: {
                         'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
                         'glow': '0 0 15px rgba(16, 185, 129, 0.3)',
+                    },
+                    animation: {
+                        'bounce-slow': 'bounce 3s infinite',
                     }
                 }
             }
@@ -51,49 +54,38 @@
 
     <style>
         /* Estilos base y utilidades personalizadas */
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            -webkit-font-smoothing: antialiased;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', sans-serif;
-        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-font-smoothing: antialiased; }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Outfit', sans-serif; }
         
         /* Animaciones */
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-5px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        .animate-in { animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        /* Typing Indicator */
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
         }
-        .animate-float {
-            animation: float 4s ease-in-out infinite;
-        }
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.98); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .animate-in {
-            animation: fadeInScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
         }
 
         /* Scrollbar oculta pero funcional */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* Efecto Glassmorphism */
-        .glass {
-            background: rgba(255, 255, 255, 0.7);
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-        }
-        .dark .glass {
-            background: rgba(17, 24, 39, 0.7);
-        }
+        .glass { background: rgba(255, 255, 255, 0.7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+        .dark .glass { background: rgba(17, 24, 39, 0.7); }
+        
+        /* Markdown básico en chat */
+        .prose-chat strong { color: #059669; font-weight: 700; }
+        .dark .prose-chat strong { color: #34d399; }
+        .prose-chat ul { list-style-type: disc; padding-left: 1.2em; margin-top: 0.5em; margin-bottom: 0.5em; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-900 transition-colors duration-300" id="body">
@@ -101,6 +93,46 @@
 
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
+
+        // --- CONFIGURACIÓN GEMINI API ---
+        const apiKey = ""; // La clave se inyecta en tiempo de ejecución
+        
+        // Función para llamar a Gemini
+        const callGeminiAPI = async (userQuery, productContext) => {
+            const systemPrompt = `
+                Actúa como "Certis Genius", un ingeniero agrónomo experto y consultor técnico de Certis Agro México.
+                
+                TU CONTEXTO DE PRODUCTOS (ÚSALO PARA RESPONDER):
+                ${JSON.stringify(productContext)}
+                
+                INSTRUCCIONES:
+                1. Tu objetivo es recomendar SOLUCIONES ESPECÍFICAS del catálogo proporcionado arriba basándote en el problema del usuario (plaga, enfermedad, cultivo).
+                2. Si el usuario pregunta por algo que NO está en el catálogo (ej. glifosato), di amablemente que Certis se enfoca en soluciones biorracionales y no manejas ese producto, pero ofrece una alternativa biológica si aplica.
+                3. Usa formato Markdown simple: usa **negritas** para resaltar los nombres de los productos Certis.
+                4. Sé conciso, profesional pero empático. Usa emojis relacionados con agricultura (🌱, 🐛, 🛡️) para hacer la conversación amena.
+                5. Si preguntan dosis, consulta el campo "dosage" del JSON.
+                6. AL FINAL, si recomiendas un producto, recuérdales siempre "leer la etiqueta antes de usar".
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    })
+                });
+
+                if (!response.ok) throw new Error('Error en API');
+                
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "Lo siento, no pude procesar tu consulta técnica en este momento.";
+            } catch (error) {
+                console.error("Error Gemini:", error);
+                return "Ocurrió un error al conectar con el servidor de IA. Por favor intenta más tarde.";
+            }
+        };
 
         // --- Iconos SVG Inline Optimizados ---
         const Icons = {
@@ -119,11 +151,12 @@
             Sun: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
             Heart: ({ filled, ...props }) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
             CheckCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>,
-            FileText: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            FileText: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>,
+            Robot: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="18" height="10" x="3" y="11" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" x2="8" y1="16" y2="16"/><line x1="16" x2="16" y1="16" y2="16"/></svg>,
+            Send: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>,
+            Sparkles: (props) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 3v4"/><path d="M3 5h4"/><path d="M3 9h4"/></svg>
         };
 
-        // --- Datos ---
-        
         // --- Uploader de Imágenes PNG (Base64 + localStorage) ---
         const ImageUploader = ({ product, onImageChange }) => {
             const handleImageUpload = (e) => {
@@ -137,183 +170,389 @@
                 reader.readAsDataURL(file);
             };
             return (
-                <label className="text-[10px] px-2 py-1 bg-white/80 dark:bg-black/40 rounded cursor-pointer">
-                    Subir PNG
-                    <input type="file" accept="image/png" className="hidden" onChange={handleImageUpload}/>
+                <label className="text-[10px] px-2 py-1 bg-white/80 dark:bg-black/40 rounded cursor-pointer shadow-sm hover:bg-white hover:text-emerald-600 transition-all">
+                    Cambiar IMG
+                    <input type="file" accept="image/png, image/jpeg" className="hidden" onChange={handleImageUpload}/>
                 </label>
             );
         };
 
-const PRODUCTS = [
-    {
-        id: 1,
-        name: "AgSil® 25",
-        category: "Nutriente",
-        type: "Potenciador",
-        activeIngredient: "Silicato de Potasio",
-        description: "Nutriente soluble que fortalece las paredes celulares, mejorando resistencia a estrés biótico y abiótico.",
-        benefits: ["Arquitectura de planta superior", "Resistencia a sequía y sales", "Ideal para MIP"],
-        crops: ["Bayas", "Hortalizas", "Ornamentales"],
-        color: "bg-blue-600",
-        image: "./public/Agsil-25-1.png"
-    },
-    {
-        id: 2,
-        name: "AMYLO-X® WG",
-        category: "Biofungicida",
-        type: "Biológico",
-        activeIngredient: "Bacillus amyloliquefaciens",
-        description: "Biofungicida de amplio espectro para el control de enfermedades foliares y radiculares en sistemas intensivos.",
-        benefits: ["Doble modo de acción", "Sin LMR (Residuos)", "Apto para exportación"],
-        crops: ["Uva", "Tomate", "Cucurbitáceas"],
-        color: "bg-certis-600",
-        image: "./public/Amylox-x-WG.png"
-    },
-    {
-        id: 3,
-        name: "DES-X®",
-        category: "Insecticida",
-        type: "Bioracional",
-        activeIngredient: "Sales potásicas",
-        description: "Jabón insecticida y acaricida de contacto para el control de insectos de cuerpo blando.",
-        benefits: ["Efecto de choque", "Seguro para benéficos", "Intervalo de seguridad: 0 días"],
-        crops: ["Hortalizas", "Frutales", "Ornamentales"],
-        color: "bg-red-500",
-        image: "./public/Des-x-1.png"
-    },
-    {
-        id: 4,
-        name: "KOCIDE® 2000-O",
-        category: "Fungicida",
-        type: "Mineral",
-        activeIngredient: "Hidróxido de Cobre",
-        description: "Fungicida y bactericida cúprico avanzado con certificación orgánica OMRI.",
-        benefits: ["Alta biodisponibilidad", "Menos cobre metálico/ha", "Control bacteriano superior"],
-        crops: ["Cítricos", "Nogal", "Hortalizas"],
-        color: "bg-teal-600",
-        image: "./public/Kocide2000-1.png"
-    },
-    {
-        id: 5,
-        name: "Mycotrol® ESO",
-        category: "Bioinsecticida",
-        type: "Biológico",
-        activeIngredient: "Beauveria bassiana",
-        description: "Insecticida micológico líder para el control de mosca blanca, trips y áfidos.",
-        benefits: ["Formulación en aceite premium", "Control de ninfas y adultos", "Rompe resistencia química"],
-        crops: ["Chile", "Tomate", "Berenjena"],
-        color: "bg-emerald-600",
-        image: "./public/Mycontrol-ES.png"
-    },
-    {
-        id: 6,
-        name: "Neemazad® 1% EC",
-        category: "Bioinsecticida",
-        type: "Botánico",
-        activeIngredient: "Azadiractina",
-        description: "Regulador de crecimiento (IGR) botánico extraído de la semilla de Neem.",
-        benefits: ["Triple acción (IGR, Repelente)", "Certificado orgánico", "Ideal para rotaciones"],
-        crops: ["Aguacate", "Berries", "Hortalizas"],
-        color: "bg-emerald-600",
-        image: "./public/Neemazad-1.png"
-    },
-    {
-        id: 7,
-        name: "PFR-97® 20% WDG",
-        category: "Bioinsecticida",
-        type: "Biológico",
-        activeIngredient: "Isaria fumosorosea",
-        description: "Hongo entomopatógeno especializado en mosca blanca y ácaros.",
-        benefits: ["Infección por contacto", "Todas las etapas de vida", "Compatible con polinizadores"],
-        crops: ["Solanáceas", "Cucurbitáceas", "Flores"],
-        color: "bg-emerald-600",
-        image: "./public/PFR-97-1.png"
-    },
-    {
-        id: 8,
-        name: "SoilGard® 12G",
-        category: "Biofungicida",
-        type: "Biológico",
-        activeIngredient: "Trichoderma virens",
-        description: "Fungicida granular preventivo para enfermedades de raíz (Pythium, Rhizoctonia).",
-        benefits: ["Rápida colonización", "Protección persistente", "Fácil aplicación al suelo"],
-        crops: ["Hortalizas", "Viveros"],
-        color: "bg-certis-600",
-        image: "./public/SoilGard12G.png"
-    },
-    {
-        id: 9,
-        name: "Thuricide® PH",
-        category: "Bioinsecticida",
-        type: "Biológico",
-        activeIngredient: "Bacillus thuringiensis",
-        description: "Insecticida biológico clásico para control específico de larvas de lepidópteros.",
-        benefits: ["Selectividad alta", "Seguro para fauna benéfica", "Pilar del MIP"],
-        crops: ["Maíz", "Hortalizas", "Frutales"],
-        color: "bg-emerald-600",
-        image: "./public/Thuricide-1.png"
-    }
-];
-
+        // --- Datos Completos ---
+        const PRODUCTS = [
+            {
+                id: 1,
+                name: "AgSil® 25",
+                category: "Nutriente",
+                type: "Potenciador de Cultivos",
+                activeIngredient: "Silicato de Potasio",
+                concentration: "25% p/p",
+                formulation: "Líquido Soluble (SL)",
+                description: "Nutriente soluble premium que fortalece las paredes celulares, creando una barrera física que mejora la resistencia al estrés biótico y abiótico.",
+                benefits: ["Arquitectura de planta superior y tallos más fuertes", "Mayor resistencia a sequía y salinidad", "Mejora la vida postcosecha de frutos"],
+                crops: ["Bayas (Berries)", "Hortalizas", "Ornamentales", "Vid"],
+                dosage: "1.5 - 3.0 L/ha vía riego",
+                application: "Foliar / Drench / Riego",
+                certification: "OMRI Listed",
+                presentation: "Bidón 20L",
+                image: "./public/Agsil-25-1.png"
+            },
+            {
+                id: 2,
+                name: "AMYLO-X® WG",
+                category: "Biofungicida",
+                type: "Biológico Preventivo",
+                activeIngredient: "Bacillus amyloliquefaciens",
+                concentration: "5x10^10 UFC/g",
+                formulation: "Gránulos Dispersables (WG)",
+                description: "Biofungicida de amplio espectro para el control de enfermedades foliares y radiculares (Botrytis, Sclerotinia) en sistemas de producción intensiva.",
+                benefits: ["Doble modo de acción: antibiosis y competencia", "Sin LMR (Residuos) - Cosecha el mismo día", "Herramienta clave para manejo de resistencia"],
+                crops: ["Uva de mesa", "Tomate", "Cucurbitáceas", "Lechuga"],
+                dosage: "0.5 - 1.5 kg/ha",
+                application: "Foliar Preventivo",
+                certification: "OMRI / GlobalGAP Compliant",
+                presentation: "Bolsa 1kg",
+                image: "./public/Amylox-x-WG.png"
+            },
+            {
+                id: 3,
+                name: "DES-X®",
+                category: "Insecticida",
+                type: "Bioracional de Contacto",
+                activeIngredient: "Sales potásicas de ác. grasos",
+                concentration: "47% Ingr. Activo",
+                formulation: "Líquido Emulsionable",
+                description: "Jabón insecticida y acaricida de contacto de última generación para el control efectivo de insectos de cuerpo blando en todos los estadios.",
+                benefits: ["Efecto de choque inmediato (Knock-down)", "Seguro para polinizadores (una vez seco)", "Intervalo de seguridad: 0 días"],
+                crops: ["Hortalizas", "Frutales", "Ornamentales", "Hierbas"],
+                dosage: "1% - 2% v/v",
+                application: "Foliar cobertura total",
+                certification: "OMRI Listed",
+                presentation: "Bidón 10L",
+                image: "./public/Des-x-1.png"
+            },
+            {
+                id: 4,
+                name: "KOCIDE® 2000-O",
+                category: "Fungicida",
+                type: "Mineral Cúprico",
+                activeIngredient: "Hidróxido de Cobre",
+                concentration: "53.8% (35% Cu metálico)",
+                formulation: "Gránulos Dispersables (WG)",
+                description: "Fungicida y bactericida cúprico tecnológicamente avanzado con certificación orgánica. La tecnología BioActive™ libera iones de cobre de forma inteligente.",
+                benefits: ["Alta biodisponibilidad con menos cobre metálico/ha", "Excelente control de bacteriosis", "Formulación de bajo polvo y fácil mezcla"],
+                crops: ["Cítricos", "Nogal", "Hortalizas", "Pimiento"],
+                dosage: "1.0 - 3.0 kg/ha",
+                application: "Foliar",
+                certification: "OMRI Listed",
+                presentation: "Saco 10kg",
+                image: "./public/Kocide2000-1.png"
+            },
+            {
+                id: 5,
+                name: "Mycotrol® ESO",
+                category: "Bioinsecticida",
+                type: "Hongo Entomopatógeno",
+                activeIngredient: "Beauveria bassiana Cepa GHA",
+                concentration: "2x10^10 esporas/ml",
+                formulation: "Suspensión en Aceite (ESO)",
+                description: "Insecticida micológico líder mundial para el control de mosca blanca, trips, áfidos y broca del café. Formulación en aceite superior.",
+                benefits: ["Formulación premium protege esporas de UV", "Controla ninfas y adultos", "Excelente herramienta de rotación"],
+                crops: ["Chile", "Tomate", "Berenjena", "Café"],
+                dosage: "0.5 - 2.0 L/ha",
+                application: "Foliar",
+                certification: "OMRI Listed",
+                presentation: "Botella 1L",
+                image: "./public/Mycontrol-ES.png"
+            },
+            {
+                id: 6,
+                name: "Neemazad® 1% EC",
+                category: "Bioinsecticida",
+                type: "Regulador de Crecimiento",
+                activeIngredient: "Azadiractina",
+                concentration: "1.0% (10,000 ppm)",
+                formulation: "Concentrado Emulsionable",
+                description: "Potente regulador de crecimiento (IGR) y antialimentario de origen botánico, extraído de la semilla de Neem de la más alta pureza.",
+                benefits: ["Triple acción: IGR, Repelente, Antialimentario", "Compatible con insectos benéficos", "Ideal para programas de manejo de resistencia"],
+                crops: ["Aguacate", "Berries", "Hortalizas", "Cítricos"],
+                dosage: "0.5 - 1.0 L/ha",
+                application: "Foliar",
+                certification: "OMRI Listed",
+                presentation: "Botella 1L",
+                image: "./public/Neemazad-1.png"
+            },
+            {
+                id: 7,
+                name: "PFR-97® 20% WDG",
+                category: "Bioinsecticida",
+                type: "Hongo Entomopatógeno",
+                activeIngredient: "Isaria fumosorosea",
+                concentration: "1x10^9 UFC/g",
+                formulation: "Gránulos Dispersables (WG)",
+                description: "Hongo entomopatógeno altamente especializado en mosca blanca, áfidos y ácaros. Infecta al insecto por contacto e ingestión.",
+                benefits: ["Infección en todas las etapas del insecto", "Compatible con liberaciones de benéficos", "Cero residuos tóxicos"],
+                crops: ["Solanáceas", "Cucurbitáceas", "Flores", "Algodón"],
+                dosage: "1.0 - 2.0 kg/ha",
+                application: "Foliar",
+                certification: "OMRI Listed",
+                presentation: "Bolsa 500g",
+                image: "./public/PFR-97-1.png"
+            },
+            {
+                id: 8,
+                name: "SoilGard® 12G",
+                category: "Biofungicida",
+                type: "Antagonista de Suelo",
+                activeIngredient: "Trichoderma virens",
+                concentration: "1x10^6 UFC/g",
+                formulation: "Granulado (G)",
+                description: "Fungicida granular preventivo para enfermedades de raíz como Pythium, Rhizoctonia y Fusarium. Coloniza rápidamente la rizosfera.",
+                benefits: ["Protección prolongada de la raíz", "Promueve el desarrollo radicular sano", "Fácil aplicación directa al suelo"],
+                crops: ["Hortalizas", "Viveros", "Semilleros"],
+                dosage: "10 - 20 kg/ha",
+                application: "Al suelo / Mezcla sustrato",
+                certification: "OMRI Listed",
+                presentation: "Saco 20kg",
+                image: "./public/SoilGard12G.png"
+            },
+            {
+                id: 9,
+                name: "Thuricide® PH",
+                category: "Bioinsecticida",
+                type: "Biológico Estomacal",
+                activeIngredient: "Bacillus thuringiensis kurstaki",
+                concentration: "32,000 UI/mg",
+                formulation: "Polvo Humectable (PH)",
+                description: "El estándar de oro en control biológico de larvas de lepidópteros (gusanos). Altamente específico y seguro para el ecosistema.",
+                benefits: ["Alta potencia contra gusano cogollero/falso medidor", "Sin daño a fauna benéfica", "Seguro para el aplicador"],
+                crops: ["Maíz", "Hortalizas", "Frutales", "Soya"],
+                dosage: "0.5 - 1.0 kg/ha",
+                application: "Foliar",
+                certification: "OMRI Listed",
+                presentation: "Bolsa 1kg",
+                image: "./public/Thuricide-1.png"
+            }
+        ];
 
         const CATEGORIES = ["Todos", "Favoritos", "Bioinsecticida", "Biofungicida", "Fungicida", "Insecticida", "Nutriente"];
 
-        // --- Utilidades ---
-        const generatePDF = (product) => {
+        // ==========================
+        //  MOTOR PDF ULTRA PROFESIONAL
+        //  - Imagen garantizada (Base64 o ruta local)
+        //  - Bloques técnicos adicionales
+        //  - Diseño corporativo
+        // ==========================
+
+        // Convierte rutas locales/URLs o base64 a DataURL listo para jsPDF
+        const toDataURL = (src) => new Promise((resolve) => {
+            if (!src) return resolve(null);
+            if (src.startsWith("data:image")) return resolve(src);
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const maxW = 1000, maxH = 1000;
+                let w = img.naturalWidth, h = img.naturalHeight;
+                const r = Math.min(maxW / w, maxH / h, 1);
+                canvas.width = Math.max(1, Math.floor(w * r));
+                canvas.height = Math.max(1, Math.floor(h * r));
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                try { resolve(canvas.toDataURL("image/png", 0.92)); }
+                catch { resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+
+        // Info técnica adicional por producto (no cambia tu array original)
+        const TECH_EXTRAS = {
+            // id: { ...campos }
+            1: { ph: "6.0 – 7.5", compat: "Evitar mezclar con ácidos fuertes y fosfitos.", class: "N/A", rei: "0 h", phi: "0 días", storage: "Almacenar a 10–35°C. Evitar congelación.", safety: "Guantes y gafas; evitar contacto ocular." },
+            2: { ph: "6.0 – 7.0", compat: "Compatible con la mayoría; evitar cúpricos en tanque.", class: "FRAC BM02 (Biológicos)", rei: "0–4 h", phi: "0 días", storage: "Mantener cerrado y en sombra.", safety: "Guantes, gafas, mascarilla ligera." },
+            3: { ph: "6.0 – 8.0", compat: "Evitar aguas muy duras (>300 ppm Ca/Mg).", class: "IRAC UN (Jabones)", rei: "0–4 h", phi: "0 días", storage: "Lugar fresco; evitar temperaturas >40°C.", safety: "Guantes; puede resecar piel." },
+            4: { ph: "6.0 – 7.0", compat: "Evitar mezclar con aceites y productos muy ácidos.", class: "FRAC M1 (Cúpricos)", rei: "24 h", phi: "Depende del cultivo (ver etiqueta)", storage: "Seco y ventilado; evitar humedad.", safety: "Guantes, gafas, mascarilla." },
+            5: { ph: "6.0 – 7.0", compat: "Evitar fungicidas de fuerte acción residual.", class: "IRAC UN (Entomopatógeno)", rei: "4 h", phi: "0 días", storage: "No exponer a >30°C; agitar antes de usar.", safety: "Guantes y gafas." },
+            6: { ph: "5.5 – 7.0", compat: "Evitar alcalinos fuertes; compatible con la mayoría.", class: "IRAC 18 (IGR)", rei: "4 h", phi: "3–7 días (ver etiqueta)", storage: "Sombra y bien cerrado.", safety: "Guantes, gafas." },
+            7: { ph: "6.0 – 7.0", compat: "Evitar fungicidas de amplio espectro simultáneos.", class: "IRAC UN (Entomopatógeno)", rei: "4 h", phi: "0 días", storage: "Fresco y sin sol directo.", safety: "Guantes, gafas." },
+            8: { ph: "6.0 – 7.0", compat: "Evitar tratamientos químicos inmediatamente posteriores.", class: "FRAC BM02 (Biológicos)", rei: "0–4 h", phi: "0 días", storage: "Lugar seco; no mojar el saco.", safety: "Guantes y mascarilla antipolvo." },
+            9: { ph: "6.0 – 8.0", compat: "Evitar pH > 8 y mezclas con cúpricos.", class: "IRAC 11A (Bt)", rei: "4 h", phi: "0 días", storage: "Fresco y seco; evitar calor.", safety: "Guantes y gafas." },
+        };
+
+        // Dibuja una sección con título y fondo suave
+        const section = (doc, title, x, y, width = 115) => {
+            doc.setFillColor(245, 247, 250);
+            doc.roundedRect(x, y, width, 8, 1.5, 1.5, 'F');
+            doc.setTextColor(6, 78, 59);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text(title, x + 3, y + 5.5);
+            return y + 12;
+        };
+
+        // Asegura espacio; si no hay, pasa de página
+        const ensureSpace = (doc, needed, marginBottom = 18) => {
+            const y = doc.lastAutoTable ? doc.lastAutoTable.finalY || 0 : doc.internal.getCurrentPageInfo().pageContext.y || 0;
+            const curY = doc.lastY || y || 0;
+            if (curY + needed > (297 - marginBottom)) {
+                doc.addPage();
+                return 15;
+            }
+            return curY;
+        };
+
+        // ========= NUEVA FUNCIÓN: PDF PRO =========
+        const generatePDF = async (product, currentImage) => {
             try {
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                // Header corporativo (simulado)
-                doc.setFillColor(16, 185, 129); // Emerald 500
-                doc.rect(0, 0, 210, 20, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(24);
-                doc.setFont("helvetica", "bold");
-                doc.text("CERTIS AGRO", 10, 13);
-                
-                // Título Producto
-                doc.setTextColor(33, 33, 33);
-                doc.setFontSize(22);
-                doc.text(product.name, 10, 40);
-                
-                // Detalles
-                doc.setFontSize(12);
-                doc.setFont("helvetica", "normal");
-                doc.setTextColor(100);
-                doc.text(`Categoría: ${product.category} | Tipo: ${product.type}`, 10, 50);
-                
-                // Ingrediente
-                doc.setFillColor(240, 253, 244); // Emerald 50
-                doc.rect(10, 55, 190, 15, 'F');
-                doc.setTextColor(5, 150, 105); // Emerald 600
-                doc.setFont("helvetica", "bold");
-                doc.text(`Ingrediente Activo: ${product.activeIngredient}`, 15, 65);
-                
+                const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+                // Paleta
+                const GREEN = { p: [16,185,129], d: [6,78,59], l: [209,250,229] };
+                const TEXT = { d: [31,41,55], m: [75,85,99], g: [100,116,139] };
+
+                // Encabezado con banda + “logo” tipográfico
+                doc.setFillColor(...GREEN.p); doc.rect(0, 0, 210, 34, 'F');
+                doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(24);
+                doc.text("CERTIS AGRO", 15, 19);
+                doc.setFontSize(10); doc.setFont("helvetica","normal");
+                doc.text("Biologicals & Biorationals", 15, 26);
+                doc.setFont("helvetica","bold"); doc.setFontSize(14);
+                doc.text("FICHA TÉCNICA", 195, 20, { align: "right" });
+
+                // Marca de agua sutil
+                doc.setTextColor(240,240,240); doc.setFontSize(60); doc.setFont("helvetica","bold");
+                doc.text("CERTIS", 105, 160, { align: "center", angle: -30 });
+
+                // Cols
+                const col1X = 15, col2X = 80;
+                let y = 48;
+
+                // Imagen del producto (garantizada)
+                const imgData = await toDataURL(currentImage || product.image);
+                doc.setDrawColor(230); doc.setLineWidth(0.2);
+                if (imgData) {
+                    // Mantener proporción dentro de 60x70
+                    const maxW=60, maxH=70;
+                    // Asumimos PNG base64; jsPDF ajusta manteniendo aspecto al fijar w/h proporcionales manualmente
+                    // Aproximación: fijo ancho y calculo alto (o viceversa) usando imagen HTML en helper ya escalada
+                    doc.addImage(imgData, "PNG", col1X, y, maxW, maxH, undefined, 'FAST');
+                    doc.rect(col1X, y, maxW, maxH); // marco fino
+                } else {
+                    doc.setFillColor(245); doc.rect(col1X, y, 60, 70, 'F');
+                    doc.setTextColor(160); doc.setFontSize(9); doc.text("Imagen no disponible", col1X + 30, y + 36, { align: "center" });
+                }
+
+                // Tarjeta “Datos técnicos” a la izquierda bajo la imagen
+                let boxY = y + 75;
+                doc.setFillColor(...GREEN.l); doc.roundedRect(col1X, boxY, 60, 85, 2, 2, 'F');
+                doc.setTextColor(...GREEN.d); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+                doc.text("DATOS TÉCNICOS", col1X + 4, boxY + 7);
+
+                const writeKV = (label, value, yy) => {
+                    doc.setTextColor(...TEXT.d); doc.setFont("helvetica","bold"); doc.setFontSize(8);
+                    doc.text(label, col1X + 4, yy);
+                    doc.setTextColor(...TEXT.m); doc.setFont("helvetica","normal");
+                    const lines = doc.splitTextToSize(String(value || "N/A"), 52);
+                    doc.text(lines, col1X + 4, yy + 4);
+                    return yy + 4 + (lines.length * 4) + 2;
+                };
+                let kY = boxY + 14;
+                kY = writeKV("Ingrediente activo:", product.activeIngredient, kY);
+                kY = writeKV("Concentración:", product.concentration, kY);
+                kY = writeKV("Formulación:", product.formulation, kY);
+                kY = writeKV("Presentación:", product.presentation, kY);
+                kY = writeKV("Certificación:", product.certification, kY);
+
+                // Encabezado nombre + categoría en la derecha
+                doc.setTextColor(...GREEN.p); doc.setFont("helvetica","bold"); doc.setFontSize(20);
+                doc.text(product.name.toUpperCase(), col2X, y + 6);
+                doc.setTextColor(...TEXT.g); doc.setFont("helvetica","normal"); doc.setFontSize(11);
+                doc.text(`${product.category} | ${product.type}`, col2X, y + 13);
+                doc.setDrawColor(...GREEN.p); doc.setLineWidth(0.5); doc.line(col2X, y + 16, 195, y + 16);
+
                 // Descripción
-                doc.setTextColor(50);
-                doc.setFont("helvetica", "normal");
-                const descLines = doc.splitTextToSize(product.description, 190);
-                doc.text(descLines, 10, 85);
-                
+                doc.setTextColor(...TEXT.d); doc.setFontSize(10);
+                let yy = section(doc, "DESCRIPCIÓN", col2X, y + 20);
+                let descLines = doc.splitTextToSize(product.description || "—", 115);
+                doc.setTextColor(...TEXT.m); doc.text(descLines, col2X, yy);
+                yy += (descLines.length * 5) + 2;
+
                 // Beneficios
-                doc.setFont("helvetica", "bold");
-                doc.text("Beneficios Clave:", 10, 110);
-                doc.setFont("helvetica", "normal");
-                let y = 120;
-                product.benefits.forEach(b => {
-                    doc.text(`• ${b}`, 15, y);
-                    y += 8;
+                yy = section(doc, "BENEFICIOS CLAVE", col2X, yy + 2);
+                doc.setTextColor(...TEXT.m); doc.setFont("helvetica","normal");
+                (product.benefits || []).forEach(b => {
+                    doc.setFillColor(...GREEN.p);
+                    doc.circle(col2X + 1.8, yy - 1.3, 1.1, 'F');
+                    doc.text(String(b), col2X + 6, yy);
+                    yy += 5.5;
                 });
-                
-                // Footer
-                doc.setFontSize(8);
-                doc.setTextColor(150);
-                doc.text(`Generado desde el Catálogo Digital Certis Agro - ${new Date().toLocaleDateString()}`, 10, 280);
-                
-                doc.save(`${product.name.replace(/\s+/g, '_')}_Ficha.pdf`);
+                yy += 2;
+
+                // Recomendaciones (cultivos/dosis/aplicación)
+                yy = section(doc, "RECOMENDACIONES DE USO", col2X, yy + 2);
+                doc.setFillColor(242, 242, 242); doc.rect(col2X, yy, 115, 8, 'F');
+                doc.setTextColor(0); doc.setFontSize(9); doc.setFont("helvetica","bold");
+                doc.text("CULTIVOS", col2X + 2, yy + 5);
+                doc.text("DOSIS", col2X + 60, yy + 5);
+                doc.text("APLICACIÓN", col2X + 90, yy + 5);
+                yy += 8;
+                doc.setFont("helvetica","normal"); doc.setTextColor(...TEXT.m);
+                const cropsText = (product.crops || []).join(", ");
+                const cropsLines = doc.splitTextToSize(cropsText || "—", 55);
+                doc.text(cropsLines, col2X + 2, yy + 5);
+                doc.text(String(product.dosage || "Consultar etiqueta"), col2X + 60, yy + 5);
+                doc.text(String(product.application || "Foliar"), col2X + 90, yy + 5);
+                yy += (Math.max(cropsLines.length, 1) * 5) + 3;
+
+                // INFO TÉCNICA EXTRA (seguridad/compatibilidad/intervalos/almacenamiento/observaciones)
+                const extra = TECH_EXTRAS[product.id] || { ph: "6.0 – 7.0", compat: "Realizar prueba de jarra antes de mezclar.", class: "N/A", rei: "4 h", phi: "0–7 días", storage: "Ambiente fresco y seco.", safety: "Guantes y gafas de seguridad." };
+
+                // Seguridad y manejo
+                yy = section(doc, "SEGURIDAD Y MANEJO", col2X, yy + 2);
+                doc.setTextColor(...TEXT.m);
+                const safetyLines = doc.splitTextToSize(`EPP: ${extra.safety}. Mantener fuera del alcance de niños y mascotas. Lavar equipo de aplicación al finalizar.`, 115);
+                doc.text(safetyLines, col2X, yy);
+                yy += safetyLines.length * 5 + 2;
+
+                // Compatibilidad y pH
+                yy = section(doc, "COMPATIBILIDAD Y pH", col2X, yy + 2);
+                const compLines = doc.splitTextToSize(`Compatibilidad: ${extra.compat} | Rango pH óptimo: ${extra.ph}`, 115);
+                doc.text(compLines, col2X, yy);
+                yy += compLines.length * 5 + 2;
+
+                // Intervalos y clasificación
+                yy = section(doc, "INTERVALOS Y CLASIFICACIÓN", col2X, yy + 2);
+                doc.text(`REI (entrada): ${extra.rei}   |   PHI (cosecha): ${extra.phi}   |   Clasificación: ${extra.class}`, col2X, yy);
+                yy += 7;
+
+                // Almacenamiento
+                yy = section(doc, "ALMACENAMIENTO", col2X, yy + 2);
+                const storLines = doc.splitTextToSize(extra.storage, 115);
+                doc.text(storLines, col2X, yy);
+                yy += storLines.length * 5 + 2;
+
+                // Observaciones finales
+                yy = section(doc, "OBSERVACIONES", col2X, yy + 2);
+                const obs = "Siempre leer la etiqueta antes de usar. Ajustar dosis según etapa fenológica, presión de plaga/enfermedad y condiciones ambientales.";
+                const obsLines = doc.splitTextToSize(obs, 115);
+                doc.text(obsLines, col2X, yy);
+                yy += obsLines.length * 5 + 2;
+
+                // Footer corporativo
+                const footerY = 270;
+                doc.setFillColor(247,247,247); doc.rect(0, footerY, 210, 27, 'F');
+                doc.setDrawColor(230,230,230); doc.line(15, footerY, 195, footerY);
+                doc.setTextColor(...TEXT.g); doc.setFont("helvetica","normal"); doc.setFontSize(8);
+                doc.text("IMPORTANTE: Lea siempre la etiqueta y la información del producto antes de usarlo.", 15, footerY + 8);
+                doc.text("Certis Agro México · Innovación para una agricultura sustentable.", 15, footerY + 13);
+                doc.text(`www.certisagro.com | +52 (33) 1234 5678 | Generado: ${new Date().toLocaleDateString()}`, 15, footerY + 18);
+                doc.setTextColor(...GREEN.p); doc.text(`${product.name}`, 195, footerY + 18, { align: "right" });
+
+                doc.save(`${product.name.replace(/\s+/g, '_')}_Ficha_Tecnica.pdf`);
             } catch (e) {
-                alert("Error al generar PDF. Intente nuevamente.");
+                console.error(e);
+                alert("Error al generar PDF.");
             }
         };
 
@@ -329,9 +568,123 @@ const PRODUCTS = [
             </div>
         );
 
+        // --- COMPONENTE CHATBOT IA ---
+        const AIChatWidget = ({ products, isOpen, onClose, initialMessage }) => {
+            const [messages, setMessages] = useState([
+                { role: 'model', text: initialMessage || '¡Hola! Soy Genius, tu asistente agronómico de Certis. 🌱 ¿En qué cultivo tienes problemas hoy?' }
+            ]);
+            const [input, setInput] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const chatEndRef = useRef(null);
+
+            useEffect(() => {
+                if (initialMessage) {
+                    setMessages(prev => [...prev, { role: 'model', text: initialMessage }]);
+                }
+            }, [initialMessage]);
+
+            useEffect(() => {
+                chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            }, [messages]);
+
+            const handleSend = async () => {
+                if (!input.trim()) return;
+                const userMsg = input;
+                setInput('');
+                setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+                setIsLoading(true);
+
+                // Llamada a Gemini
+                const responseText = await callGeminiAPI(userMsg, products);
+                
+                setMessages(prev => [...prev, { role: 'model', text: responseText }]);
+                setIsLoading(false);
+            };
+
+            const renderMessageText = (text) => {
+                const parts = text.split(/(\*\*.*?\*\*)/g);
+                return parts.map((part, i) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <strong key={i} className="font-bold text-emerald-600 dark:text-emerald-400">{part.slice(2, -2)}</strong>;
+                    }
+                    return part;
+                });
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed bottom-24 right-6 w-80 md:w-96 h-[500px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-slate-700 z-50 animate-in">
+                    {/* Header Chat */}
+                    <div className="bg-emerald-600 p-4 flex justify-between items-center shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                                <Icons.Robot className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-bold text-sm">Certis Genius AI ✨</h3>
+                                <p className="text-emerald-100 text-[10px]">Consultor Agronómico Virtual</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="text-white/80 hover:text-white"><Icons.X className="w-5 h-5" /></button>
+                    </div>
+
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-slate-950">
+                        {messages.map((msg, idx) => (
+                            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                                    msg.role === 'user' 
+                                        ? 'bg-emerald-500 text-white rounded-br-none' 
+                                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-bl-none border border-gray-100 dark:border-slate-700'
+                                }`}>
+                                    <div className="whitespace-pre-wrap prose-chat">
+                                        {renderMessageText(msg.text)}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex justify-start">
+                                <div className="bg-white dark:bg-slate-800 rounded-2xl rounded-bl-none px-4 py-3 border border-gray-100 dark:border-slate-700 flex gap-1">
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full typing-dot"></div>
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full typing-dot"></div>
+                                    <div className="w-2 h-2 bg-emerald-500 rounded-full typing-dot"></div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Input Area */}
+                    <div className="p-3 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-700 shrink-0">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                                placeholder="Escribe tu consulta..."
+                                className="w-full pl-4 pr-12 py-3 rounded-xl bg-gray-100 dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                            />
+                            <button 
+                                onClick={handleSend}
+                                disabled={!input.trim() || isLoading}
+                                className="absolute right-2 top-2 p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Icons.Send className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="text-[10px] text-center text-slate-400 mt-2">
+                            La IA puede cometer errores. Verifica con un técnico humano.
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- Componente Principal ---
-        
-const App = () => {
+        const App = () => {
             const [productImages, setProductImages] = useState({});
             useEffect(() => {
                 PRODUCTS.forEach(p => {
@@ -350,102 +703,79 @@ const App = () => {
             const [favorites, setFavorites] = useState([]);
             const catalogRef = useRef(null);
 
-            // Persistencia de modo oscuro
+            // Estados Chat IA
+            const [isChatOpen, setIsChatOpen] = useState(false);
+            const [chatContextMsg, setChatContextMsg] = useState(null);
+
             useEffect(() => {
                 if (darkMode) document.documentElement.classList.add('dark');
                 else document.documentElement.classList.remove('dark');
             }, [darkMode]);
 
-            // Toggle favoritos
             const toggleFavorite = (e, id) => {
                 e.stopPropagation();
-                setFavorites(prev => 
-                    prev.includes(id) ? prev.filter(fav => fav !== id) : [...prev, id]
-                );
+                setFavorites(prev => prev.includes(id) ? prev.filter(fav => fav !== id) : [...prev, id]);
             };
 
-            // Filtrado inteligente
             const filteredProducts = useMemo(() => {
                 const query = searchQuery.toLowerCase().trim();
                 return PRODUCTS.filter(p => {
-                    const inCategory = selectedCategory === "Todos" 
-                        ? true 
-                        : selectedCategory === "Favoritos" 
-                            ? favorites.includes(p.id) 
-                            : p.category === selectedCategory;
-                    
-                    const inSearch = !query || 
-                        p.name.toLowerCase().includes(query) || 
-                        p.activeIngredient.toLowerCase().includes(query) ||
-                        p.description.toLowerCase().includes(query);
-                        
+                    const inCategory = selectedCategory === "Todos" ? true : selectedCategory === "Favoritos" ? favorites.includes(p.id) : p.category === selectedCategory;
+                    const inSearch = !query || p.name.toLowerCase().includes(query) || p.activeIngredient.toLowerCase().includes(query) || p.description.toLowerCase().includes(query);
                     return inCategory && inSearch;
                 });
             }, [selectedCategory, searchQuery, favorites]);
 
             const scrollToCatalog = () => catalogRef.current?.scrollIntoView({ behavior: "smooth" });
 
+            const openProductChat = (productName) => {
+                setChatContextMsg(`Hola, necesito asesoría técnica específica sobre **${productName}**. ¿Para qué plagas es más efectivo?`);
+                setIsChatOpen(true);
+                if (window.innerWidth < 768) setSelectedProduct(null);
+            };
+
             return (
                 <div className={`min-h-screen flex flex-col ${darkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
                     
-                    {/* HERO SECTION ULTRA PREMIUM */}
+                    {/* HERO SECTION */}
                     <header className="relative min-h-[85vh] flex flex-col">
-                        {/* Fondo con Overlay Gradiente */}
                         <div className="absolute inset-0 z-0">
-                            <img 
-                                src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=2070&auto=format&fit=crop" 
-                                className="w-full h-full object-cover"
-                                alt="Campo agrícola"
-                            />
+                            <img src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover" alt="Campo agrícola"/>
                             <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-transparent"></div>
                             <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-gray-950 via-transparent to-transparent h-32 bottom-0"></div>
                         </div>
 
-                        {/* Navegación */}
                         <nav className="relative z-10 px-6 py-6 flex justify-between items-center max-w-7xl mx-auto w-full">
                             <div className="flex items-center gap-3 animate-in">
-                                <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-glow">
-                                    C
-                                </div>
+                                <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-glow">C</div>
                                 <span className="text-white font-bold text-xl tracking-tight hidden sm:block">CERTIS AGRO</span>
                             </div>
-                            <button 
-                                onClick={() => setDarkMode(!darkMode)}
-                                className="p-2.5 rounded-full bg-white/10 backdrop-blur border border-white/10 text-white hover:bg-white/20 transition-colors"
-                            >
+                            <button onClick={() => setDarkMode(!darkMode)} className="p-2.5 rounded-full bg-white/10 backdrop-blur border border-white/10 text-white hover:bg-white/20 transition-colors">
                                 {darkMode ? <Icons.Sun className="w-5 h-5"/> : <Icons.Moon className="w-5 h-5"/>}
                             </button>
                         </nav>
 
-                        {/* Contenido Hero */}
                         <div className="relative z-10 flex-1 flex items-center max-w-7xl mx-auto w-full px-6 pb-20">
                             <div className="max-w-3xl space-y-8 animate-in">
                                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 backdrop-blur text-emerald-300 text-xs font-bold uppercase tracking-widest">
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    Innovación Biológica
+                                    Innovación Biológica + IA
                                 </div>
-                                
                                 <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-tight">
                                     El futuro de la <br/>
-                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">
-                                        agricultura sostenible
-                                    </span>
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">agricultura sostenible</span>
                                 </h1>
-                                
                                 <p className="text-lg md:text-xl text-slate-300 max-w-xl leading-relaxed">
-                                    Descubre soluciones biorracionales de alto impacto para potenciar tus cultivos respetando el medio ambiente.
+                                    Descubre soluciones biorracionales de alto impacto y consulta a nuestro **Genius AI** para optimizar tus cultivos.
                                 </p>
-
                                 <div className="flex flex-wrap gap-4 pt-4">
                                     <button onClick={scrollToCatalog} className="px-8 py-4 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm tracking-wide shadow-lg shadow-emerald-500/30 hover:-translate-y-1 transition-all flex items-center gap-2">
                                         EXPLORAR CATÁLOGO <Icons.ChevronRight className="w-4 h-4"/>
                                     </button>
-                                    <a href="#contacto" className="px-8 py-4 rounded-full bg-white text-slate-900 hover:bg-gray-100 font-bold text-sm tracking-wide shadow-lg hover:-translate-y-1 transition-all">
-                                        CONTACTAR EXPERTO
-                                    </a>
+                                    <button onClick={() => setIsChatOpen(true)} className="px-8 py-4 rounded-full bg-white text-slate-900 hover:bg-gray-100 font-bold text-sm tracking-wide shadow-lg hover:-translate-y-1 transition-all flex items-center gap-2">
+                                        <Icons.Robot className="w-4 h-4 text-emerald-600" /> CONSULTAR A LA IA
+                                    </button>
                                 </div>
-
-                                {/* Stats Bar */}
                                 <div className="pt-12 grid grid-cols-2 md:grid-cols-3 gap-4 border-t border-white/10 mt-8">
                                     <StatCard icon={Icons.CheckCircle} value="+15 Años" label="Experiencia" />
                                     <StatCard icon={Icons.Leaf} value="100%" label="Biológico" />
@@ -458,8 +788,6 @@ const App = () => {
                     {/* CATALOG SECTION */}
                     <div ref={catalogRef} className="flex-1 bg-white dark:bg-gray-950 relative -mt-10 rounded-t-[2.5rem] z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.1)]">
                         <div className="max-w-7xl mx-auto px-6 py-12">
-                            
-                            {/* Buscador y Filtros */}
                             <div className="flex flex-col lg:flex-row gap-8 items-end justify-between mb-12">
                                 <div className="w-full lg:w-auto space-y-2">
                                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
@@ -468,107 +796,52 @@ const App = () => {
                                     </h3>
                                     <p className="text-slate-500 dark:text-slate-400">Encuentra el producto ideal para tu cultivo.</p>
                                 </div>
-
                                 <div className="w-full lg:w-auto flex flex-col md:flex-row gap-4">
-                                    {/* Search Input */}
                                     <div className="relative group w-full md:w-80">
-                                        <input
-                                            type="text"
-                                            placeholder="Buscar ingrediente, plaga..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-slate-700 dark:text-white placeholder:text-gray-400"
-                                        />
+                                        <input type="text" placeholder="Buscar ingrediente, plaga..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-slate-700 dark:text-white placeholder:text-gray-400" />
                                         <Icons.Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Categorías Tabs */}
                             <div className="flex gap-3 overflow-x-auto pb-4 mb-8 no-scrollbar">
                                 {CATEGORIES.map(cat => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setSelectedCategory(cat)}
-                                        className={`
-                                            px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2
-                                            ${selectedCategory === cat 
-                                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg transform scale-105' 
-                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                                            }
-                                        `}
-                                    >
-                                        {cat === "Favoritos" && <Icons.Heart className={`w-4 h-4 ${selectedCategory === cat ? 'fill-current' : ''}`} />}
-                                        {cat}
+                                    <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 ${selectedCategory === cat ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg transform scale-105' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                                        {cat === "Favoritos" && <Icons.Heart className={`w-4 h-4 ${selectedCategory === cat ? 'fill-current' : ''}`} />} {cat}
                                     </button>
                                 ))}
                             </div>
 
-                            {/* Grid de Productos */}
                             {filteredProducts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {filteredProducts.map(product => (
-                                        <div 
-                                            key={product.id}
-                                            onClick={() => setSelectedProduct(product)}
-                                            className="group bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full relative"
-                                        >
-                                            {/* Badge Categoría */}
-                                            <div className="absolute top-4 left-4 z-10 flex gap-2"><ImageUploader product={product} onImageChange={updateProductImage} />
-                                                <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold uppercase tracking-wider text-emerald-600 shadow-sm">
-                                                    {product.category}
-                                                </span>
+                                        <div key={product.id} onClick={() => setSelectedProduct(product)} className="group bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full relative">
+                                            <div className="absolute top-4 left-4 z-10 flex gap-2 flex-col items-start">
+                                                <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold uppercase tracking-wider text-emerald-600 shadow-sm">{product.category}</span>
+                                                <div onClick={(e) => e.stopPropagation()}><ImageUploader product={product} onImageChange={updateProductImage} /></div>
                                             </div>
-                                            
-                                            {/* Botón Favorito */}
-                                            <button 
-                                                onClick={(e) => toggleFavorite(e, product.id)}
-                                                className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur transition-all duration-300 ${
-                                                    favorites.includes(product.id) 
-                                                        ? 'bg-red-50 text-red-500 shadow-md' 
-                                                        : 'bg-black/20 text-white hover:bg-white hover:text-red-500'
-                                                }`}
-                                            >
+                                            <button onClick={(e) => toggleFavorite(e, product.id)} className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur transition-all duration-300 ${favorites.includes(product.id) ? 'bg-red-50 text-red-500 shadow-md' : 'bg-black/20 text-white hover:bg-white hover:text-red-500'}`}>
                                                 <Icons.Heart className="w-5 h-5" filled={favorites.includes(product.id)} />
                                             </button>
-
-                                            {/* Imagen */}
                                             <div className="h-56 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                                                <img 
-                                                    src={productImages[product.id] || product.image} 
-                                                    alt={product.name}
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                                />
+                                                <img src={productImages[product.id] || product.image} alt={product.name} onError={(e) => {e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image"}} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
                                                 <div className="absolute bottom-4 left-4 right-4">
                                                     <h3 className="text-2xl font-bold text-white mb-1 drop-shadow-md">{product.name}</h3>
                                                     <p className="text-gray-200 text-xs font-mono opacity-90">{product.type}</p>
                                                 </div>
                                             </div>
-
-                                            {/* Cuerpo */}
                                             <div className="p-6 flex-1 flex flex-col">
                                                 <div className="mb-4">
                                                     <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-1">Ingrediente Activo</p>
                                                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{product.activeIngredient}</p>
                                                 </div>
-                                                
-                                                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-3 mb-6 flex-1">
-                                                    {product.description}
-                                                </p>
-
+                                                <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-3 mb-6 flex-1">{product.description}</p>
                                                 <div className="flex flex-wrap gap-2 mb-6">
-                                                    {product.crops.slice(0,3).map((c, i) => (
-                                                        <span key={i} className="px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium border border-gray-100 dark:border-gray-700">
-                                                            {c}
-                                                        </span>
-                                                    ))}
+                                                    {product.crops.slice(0,3).map((c, i) => (<span key={i} className="px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium border border-gray-100 dark:border-gray-700">{c}</span>))}
                                                 </div>
-
                                                 <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800">
-                                                    <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group-hover:gap-3 transition-all">
-                                                        Ver Detalles <Icons.ChevronRight className="w-4 h-4" />
-                                                    </span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group-hover:gap-3 transition-all">Ver Detalles <Icons.ChevronRight className="w-4 h-4" /></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -576,59 +849,28 @@ const App = () => {
                                 </div>
                             ) : (
                                 <div className="text-center py-20">
-                                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <Icons.Filter className="w-8 h-8 text-gray-400" />
-                                    </div>
+                                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6"><Icons.Filter className="w-8 h-8 text-gray-400" /></div>
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Sin resultados</h3>
                                     <p className="text-slate-500">Intenta cambiar los filtros o la búsqueda.</p>
-                                    <button onClick={() => {setSearchQuery(""); setSelectedCategory("Todos")}} className="mt-6 text-emerald-500 font-bold hover:underline">
-                                        Limpiar Filtros
-                                    </button>
+                                    <button onClick={() => {setSearchQuery(""); setSelectedCategory("Todos")}} className="mt-6 text-emerald-500 font-bold hover:underline">Limpiar Filtros</button>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* FOOTER CORPORATIVO */}
+                    {/* FOOTER */}
                     <footer id="contacto" className="bg-slate-900 text-slate-400 py-12 lg:py-16">
                         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
                             <div className="col-span-1 md:col-span-2">
-                                <div className="flex items-center gap-3 mb-6 text-white">
-                                    <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center font-bold text-lg">C</div>
-                                    <span className="font-bold text-xl tracking-tight">CERTIS AGRO</span>
-                                </div>
-                                <p className="leading-relaxed max-w-sm mb-6">
-                                    Líderes en soluciones biorracionales innovadoras para la protección de cultivos, comprometidos con la agricultura sostenible y el medio ambiente.
-                                </p>
-                                <div className="flex gap-4">
-                                    {/* Social placeholders */}
-                                    {[1,2,3].map(i => (
-                                        <div key={i} className="w-10 h-10 rounded-full bg-white/5 hover:bg-emerald-500 hover:text-white transition-colors flex items-center justify-center cursor-pointer">
-                                            <Icons.Share className="w-4 h-4" />
-                                        </div>
-                                    ))}
-                                </div>
+                                <div className="flex items-center gap-3 mb-6 text-white"><div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center font-bold text-lg">C</div><span className="font-bold text-xl tracking-tight">CERTIS AGRO</span></div>
+                                <p className="leading-relaxed max-w-sm mb-6">Líderes en soluciones biorracionales innovadoras para la protección de cultivos, comprometidos con la agricultura sostenible y el medio ambiente.</p>
                             </div>
-                            <div>
-                                <h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Enlaces Rápidos</h4>
-                                <ul className="space-y-3 text-sm">
-                                    {['Inicio', 'Catálogo', 'Sustentabilidad', 'Contacto', 'Aviso de Privacidad'].map(item => (
-                                        <li key={item}><a href="#" className="hover:text-emerald-400 transition-colors">{item}</a></li>
-                                    ))}
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Contacto</h4>
-                                <ul className="space-y-3 text-sm">
-                                    <li>Av. Vallarta 1234, GDL, MX</li>
-                                    <li>contacto@certisagro.com</li>
-                                    <li>+52 (33) 1234 5678</li>
-                                </ul>
-                            </div>
+                            <div><h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Enlaces Rápidos</h4><ul className="space-y-3 text-sm">{['Inicio', 'Catálogo', 'Sustentabilidad', 'Contacto'].map(item => (<li key={item}><a href="#" className="hover:text-emerald-400 transition-colors">{item}</a></li>))}</ul></div>
+                            <div><h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Contacto</h4><ul className="space-y-3 text-sm"><li>Av. Vallarta 1234, GDL, MX</li><li>contacto@certisagro.com</li></ul></div>
                         </div>
                         <div className="max-w-7xl mx-auto px-6 pt-8 mt-12 border-t border-white/10 text-xs text-center md:text-left flex flex-col md:flex-row justify-between items-center">
-                            <p>&copy; 2025 Certis Agro México. Todos los derechos reservados.</p>
-                            <p className="mt-2 md:mt-0">Desarrollado con React & Tailwind</p>
+                            <p>&copy; 2025 Certis Agro México.</p>
+                            <p className="mt-2 md:mt-0">Powered by Gemini AI ✨</p>
                         </div>
                     </footer>
 
@@ -636,83 +878,62 @@ const App = () => {
                     {selectedProduct && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in">
                             <div className="bg-white dark:bg-gray-900 w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
-                                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 backdrop-blur transition-colors">
-                                    <Icons.X className="w-6 h-6 text-slate-700 dark:text-white" />
-                                </button>
+                                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 backdrop-blur transition-colors"><Icons.X className="w-6 h-6 text-slate-700 dark:text-white" /></button>
 
-                                {/* Columna Imagen */}
                                 <div className="w-full md:w-2/5 h-64 md:h-auto relative bg-gray-100 dark:bg-gray-800">
-                                    <img src={productImages[selectedProduct.id] || selectedProduct.image} className="w-full h-full object-cover" alt={selectedProduct.name} />
+                                    <img src={productImages[selectedProduct.id] || selectedProduct.image} className="w-full h-full object-cover" alt={selectedProduct.name} onError={(e) => {e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image"}} />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:hidden"></div>
-                                    <div className="absolute bottom-4 left-4 md:hidden text-white">
-                                        <h2 className="text-3xl font-bold">{selectedProduct.name}</h2>
-                                        <p className="opacity-80">{selectedProduct.type}</p>
-                                    </div>
+                                    <div className="absolute bottom-4 left-4 md:hidden text-white"><h2 className="text-3xl font-bold">{selectedProduct.name}</h2><p className="opacity-80">{selectedProduct.type}</p></div>
                                 </div>
 
-                                {/* Columna Info */}
                                 <div className="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900">
                                     <div className="hidden md:block mb-6">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wide">
-                                                {selectedProduct.category}
-                                            </span>
-                                            <span className="text-slate-400 text-sm font-mono border-l pl-3 border-slate-200">{selectedProduct.type}</span>
-                                        </div>
+                                        <div className="flex items-center gap-3 mb-2"><span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wide">{selectedProduct.category}</span><span className="text-slate-400 text-sm font-mono border-l pl-3 border-slate-200">{selectedProduct.type}</span></div>
                                         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white">{selectedProduct.name}</h2>
                                     </div>
 
                                     <div className="space-y-8">
-                                        {/* Ingrediente */}
-                                        <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingrediente Activo</p>
-                                            <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">{selectedProduct.activeIngredient}</p>
+                                        <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingrediente Activo</p><p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{selectedProduct.activeIngredient}</p></div>
+                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Formulación</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.formulation || "N/A"}</p></div>
+                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Concentración</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.concentration || "N/A"}</p></div>
+                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Presentación</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.presentation || "N/A"}</p></div>
                                         </div>
+                                        <div><h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2"><Icons.Info className="w-5 h-5 text-emerald-500" /> Descripción</h3><p className="text-slate-600 dark:text-slate-300 leading-relaxed">{selectedProduct.description}</p></div>
+                                        <div><h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Beneficios Clave</h3><ul className="grid gap-3">{selectedProduct.benefits.map((b, i) => (<li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/20"><Icons.CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" /><span className="text-sm font-medium text-slate-700 dark:text-slate-300">{b}</span></li>))}</ul></div>
+                                        
+                                        {/* BOTÓN IA EN MODAL */}
+                                        <button 
+                                            onClick={() => openProductChat(selectedProduct.name)}
+                                            className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95 mb-2"
+                                        >
+                                            <Icons.Sparkles className="w-5 h-5" /> Preguntar a Genius AI sobre este producto
+                                        </button>
 
-                                        {/* Descripción */}
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                                                <Icons.Info className="w-5 h-5 text-emerald-500" /> Descripción
-                                            </h3>
-                                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                                                {selectedProduct.description} Diseñado específicamente para maximizar el rendimiento bajo estándares de agricultura moderna.
-                                            </p>
-                                        </div>
-
-                                        {/* Beneficios */}
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Beneficios Clave</h3>
-                                            <ul className="grid gap-3">
-                                                {selectedProduct.benefits.map((b, i) => (
-                                                    <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/20">
-                                                        <Icons.CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{b}</span>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-
-                                        {/* Acciones Footer */}
-                                        <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100 dark:border-gray-800">
-                                            <button 
-                                                onClick={() => generatePDF(selectedProduct)}
-                                                className="flex-1 py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"
-                                            >
-                                                <Icons.FileText className="w-5 h-5" /> Descargar Ficha
-                                            </button>
-                                            <a 
-                                                href={`https://wa.me/?text=Hola, me interesa información sobre ${selectedProduct.name}`}
-                                                target="_blank"
-                                                className="flex-1 py-3.5 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95"
-                                            >
-                                                <Icons.Share className="w-5 h-5" /> WhatsApp
-                                            </a>
+                                        <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                            <button onClick={() => generatePDF(selectedProduct, productImages[selectedProduct.id] || selectedProduct.image)} className="flex-1 py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"><Icons.FileText className="w-5 h-5" /> Descargar Ficha</button>
+                                            <a href={`https://wa.me/?text=Me interesa ${selectedProduct.name}`} target="_blank" className="flex-1 py-3.5 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95"><Icons.Share className="w-5 h-5" /> WhatsApp</a>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
+
+                    {/* FAB CHATBOT */}
+                    <button 
+                        onClick={() => setIsChatOpen(!isChatOpen)}
+                        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-2xl shadow-emerald-600/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 animate-bounce-slow"
+                    >
+                        {isChatOpen ? <Icons.X className="w-6 h-6" /> : <Icons.Robot className="w-7 h-7" />}
+                    </button>
+
+                    <AIChatWidget 
+                        products={PRODUCTS} 
+                        isOpen={isChatOpen} 
+                        onClose={() => setIsChatOpen(false)} 
+                        initialMessage={chatContextMsg}
+                    />
                 </div>
             );
         };
