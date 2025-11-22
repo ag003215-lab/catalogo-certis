@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Catálogo Digital Certis Agro · IA Powered</title>
+    <title>Catálogo Digital Agro · IA Powered</title>
     <meta name="description" content="Catálogo interactivo de soluciones biológicas para agricultura sustentable con Asistente IA.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="./public/favicon.ico" />
 
     <!-- Tipografías Premium -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -100,7 +103,7 @@
         // Función para llamar a Gemini
         const callGeminiAPI = async (userQuery, productContext) => {
             const systemPrompt = `
-                Actúa como "Certis Genius", un ingeniero agrónomo experto y consultor técnico de Certis Agro México.
+                Actúa como "Certis Genius", un ingeniero agrónomo experto y consultor técnico de  Agro México.
                 
                 TU CONTEXTO DE PRODUCTOS (ÚSALO PARA RESPONDER):
                 ${JSON.stringify(productContext)}
@@ -338,12 +341,8 @@
 
         // ==========================
         //  MOTOR PDF ULTRA PROFESIONAL
-        //  - Imagen garantizada (Base64 o ruta local)
-        //  - Bloques técnicos adicionales
-        //  - Diseño corporativo
         // ==========================
 
-        // Convierte rutas locales/URLs o base64 a DataURL listo para jsPDF
         const toDataURL = (src) => new Promise((resolve) => {
             if (!src) return resolve(null);
             if (src.startsWith("data:image")) return resolve(src);
@@ -365,9 +364,7 @@
             img.src = src;
         });
 
-        // Info técnica adicional por producto (no cambia tu array original)
         const TECH_EXTRAS = {
-            // id: { ...campos }
             1: { ph: "6.0 – 7.5", compat: "Evitar mezclar con ácidos fuertes y fosfitos.", class: "N/A", rei: "0 h", phi: "0 días", storage: "Almacenar a 10–35°C. Evitar congelación.", safety: "Guantes y gafas; evitar contacto ocular." },
             2: { ph: "6.0 – 7.0", compat: "Compatible con la mayoría; evitar cúpricos en tanque.", class: "FRAC BM02 (Biológicos)", rei: "0–4 h", phi: "0 días", storage: "Mantener cerrado y en sombra.", safety: "Guantes, gafas, mascarilla ligera." },
             3: { ph: "6.0 – 8.0", compat: "Evitar aguas muy duras (>300 ppm Ca/Mg).", class: "IRAC UN (Jabones)", rei: "0–4 h", phi: "0 días", storage: "Lugar fresco; evitar temperaturas >40°C.", safety: "Guantes; puede resecar piel." },
@@ -379,7 +376,6 @@
             9: { ph: "6.0 – 8.0", compat: "Evitar pH > 8 y mezclas con cúpricos.", class: "IRAC 11A (Bt)", rei: "4 h", phi: "0 días", storage: "Fresco y seco; evitar calor.", safety: "Guantes y gafas." },
         };
 
-        // Dibuja una sección con título y fondo suave
         const section = (doc, title, x, y, width = 115) => {
             doc.setFillColor(245, 247, 250);
             doc.roundedRect(x, y, width, 8, 1.5, 1.5, 'F');
@@ -390,7 +386,6 @@
             return y + 12;
         };
 
-        // Asegura espacio; si no hay, pasa de página
         const ensureSpace = (doc, needed, marginBottom = 18) => {
             const y = doc.lastAutoTable ? doc.lastAutoTable.finalY || 0 : doc.internal.getCurrentPageInfo().pageContext.y || 0;
             const curY = doc.lastY || y || 0;
@@ -401,49 +396,39 @@
             return curY;
         };
 
-        // ========= NUEVA FUNCIÓN: PDF PRO =========
         const generatePDF = async (product, currentImage) => {
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-                // Paleta
                 const GREEN = { p: [16,185,129], d: [6,78,59], l: [209,250,229] };
                 const TEXT = { d: [31,41,55], m: [75,85,99], g: [100,116,139] };
 
-                // Encabezado con banda + “logo” tipográfico
                 doc.setFillColor(...GREEN.p); doc.rect(0, 0, 210, 34, 'F');
                 doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(24);
-                doc.text("CERTIS AGRO", 15, 19);
+                doc.text(" AGRO", 15, 19);
                 doc.setFontSize(10); doc.setFont("helvetica","normal");
                 doc.text("Biologicals & Biorationals", 15, 26);
                 doc.setFont("helvetica","bold"); doc.setFontSize(14);
                 doc.text("FICHA TÉCNICA", 195, 20, { align: "right" });
 
-                // Marca de agua sutil
                 doc.setTextColor(240,240,240); doc.setFontSize(60); doc.setFont("helvetica","bold");
                 doc.text("CERTIS", 105, 160, { align: "center", angle: -30 });
 
-                // Cols
                 const col1X = 15, col2X = 80;
                 let y = 48;
 
-                // Imagen del producto (garantizada)
                 const imgData = await toDataURL(currentImage || product.image);
                 doc.setDrawColor(230); doc.setLineWidth(0.2);
                 if (imgData) {
-                    // Mantener proporción dentro de 60x70
                     const maxW=60, maxH=70;
-                    // Asumimos PNG base64; jsPDF ajusta manteniendo aspecto al fijar w/h proporcionales manualmente
-                    // Aproximación: fijo ancho y calculo alto (o viceversa) usando imagen HTML en helper ya escalada
                     doc.addImage(imgData, "PNG", col1X, y, maxW, maxH, undefined, 'FAST');
-                    doc.rect(col1X, y, maxW, maxH); // marco fino
+                    doc.rect(col1X, y, maxW, maxH);
                 } else {
                     doc.setFillColor(245); doc.rect(col1X, y, 60, 70, 'F');
                     doc.setTextColor(160); doc.setFontSize(9); doc.text("Imagen no disponible", col1X + 30, y + 36, { align: "center" });
                 }
 
-                // Tarjeta “Datos técnicos” a la izquierda bajo la imagen
                 let boxY = y + 75;
                 doc.setFillColor(...GREEN.l); doc.roundedRect(col1X, boxY, 60, 85, 2, 2, 'F');
                 doc.setTextColor(...GREEN.d); doc.setFont("helvetica","bold"); doc.setFontSize(10);
@@ -464,21 +449,18 @@
                 kY = writeKV("Presentación:", product.presentation, kY);
                 kY = writeKV("Certificación:", product.certification, kY);
 
-                // Encabezado nombre + categoría en la derecha
                 doc.setTextColor(...GREEN.p); doc.setFont("helvetica","bold"); doc.setFontSize(20);
                 doc.text(product.name.toUpperCase(), col2X, y + 6);
                 doc.setTextColor(...TEXT.g); doc.setFont("helvetica","normal"); doc.setFontSize(11);
                 doc.text(`${product.category} | ${product.type}`, col2X, y + 13);
                 doc.setDrawColor(...GREEN.p); doc.setLineWidth(0.5); doc.line(col2X, y + 16, 195, y + 16);
 
-                // Descripción
                 doc.setTextColor(...TEXT.d); doc.setFontSize(10);
                 let yy = section(doc, "DESCRIPCIÓN", col2X, y + 20);
                 let descLines = doc.splitTextToSize(product.description || "—", 115);
                 doc.setTextColor(...TEXT.m); doc.text(descLines, col2X, yy);
                 yy += (descLines.length * 5) + 2;
 
-                // Beneficios
                 yy = section(doc, "BENEFICIOS CLAVE", col2X, yy + 2);
                 doc.setTextColor(...TEXT.m); doc.setFont("helvetica","normal");
                 (product.benefits || []).forEach(b => {
@@ -489,7 +471,6 @@
                 });
                 yy += 2;
 
-                // Recomendaciones (cultivos/dosis/aplicación)
                 yy = section(doc, "RECOMENDACIONES DE USO", col2X, yy + 2);
                 doc.setFillColor(242, 242, 242); doc.rect(col2X, yy, 115, 8, 'F');
                 doc.setTextColor(0); doc.setFontSize(9); doc.setFont("helvetica","bold");
@@ -505,47 +486,40 @@
                 doc.text(String(product.application || "Foliar"), col2X + 90, yy + 5);
                 yy += (Math.max(cropsLines.length, 1) * 5) + 3;
 
-                // INFO TÉCNICA EXTRA (seguridad/compatibilidad/intervalos/almacenamiento/observaciones)
                 const extra = TECH_EXTRAS[product.id] || { ph: "6.0 – 7.0", compat: "Realizar prueba de jarra antes de mezclar.", class: "N/A", rei: "4 h", phi: "0–7 días", storage: "Ambiente fresco y seco.", safety: "Guantes y gafas de seguridad." };
 
-                // Seguridad y manejo
                 yy = section(doc, "SEGURIDAD Y MANEJO", col2X, yy + 2);
                 doc.setTextColor(...TEXT.m);
                 const safetyLines = doc.splitTextToSize(`EPP: ${extra.safety}. Mantener fuera del alcance de niños y mascotas. Lavar equipo de aplicación al finalizar.`, 115);
                 doc.text(safetyLines, col2X, yy);
                 yy += safetyLines.length * 5 + 2;
 
-                // Compatibilidad y pH
                 yy = section(doc, "COMPATIBILIDAD Y pH", col2X, yy + 2);
                 const compLines = doc.splitTextToSize(`Compatibilidad: ${extra.compat} | Rango pH óptimo: ${extra.ph}`, 115);
                 doc.text(compLines, col2X, yy);
                 yy += compLines.length * 5 + 2;
 
-                // Intervalos y clasificación
                 yy = section(doc, "INTERVALOS Y CLASIFICACIÓN", col2X, yy + 2);
                 doc.text(`REI (entrada): ${extra.rei}   |   PHI (cosecha): ${extra.phi}   |   Clasificación: ${extra.class}`, col2X, yy);
                 yy += 7;
 
-                // Almacenamiento
                 yy = section(doc, "ALMACENAMIENTO", col2X, yy + 2);
                 const storLines = doc.splitTextToSize(extra.storage, 115);
                 doc.text(storLines, col2X, yy);
                 yy += storLines.length * 5 + 2;
 
-                // Observaciones finales
                 yy = section(doc, "OBSERVACIONES", col2X, yy + 2);
                 const obs = "Siempre leer la etiqueta antes de usar. Ajustar dosis según etapa fenológica, presión de plaga/enfermedad y condiciones ambientales.";
                 const obsLines = doc.splitTextToSize(obs, 115);
                 doc.text(obsLines, col2X, yy);
                 yy += obsLines.length * 5 + 2;
 
-                // Footer corporativo
                 const footerY = 270;
                 doc.setFillColor(247,247,247); doc.rect(0, footerY, 210, 27, 'F');
                 doc.setDrawColor(230,230,230); doc.line(15, footerY, 195, footerY);
                 doc.setTextColor(...TEXT.g); doc.setFont("helvetica","normal"); doc.setFontSize(8);
                 doc.text("IMPORTANTE: Lea siempre la etiqueta y la información del producto antes de usarlo.", 15, footerY + 8);
-                doc.text("Certis Agro México · Innovación para una agricultura sustentable.", 15, footerY + 13);
+                doc.text(" Agro México · Innovación para una agricultura sustentable.", 15, footerY + 13);
                 doc.text(`www.certisagro.com | +52 (33) 1234 5678 | Generado: ${new Date().toLocaleDateString()}`, 15, footerY + 18);
                 doc.setTextColor(...GREEN.p); doc.text(`${product.name}`, 195, footerY + 18, { align: "right" });
 
@@ -594,7 +568,6 @@
                 setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
                 setIsLoading(true);
 
-                // Llamada a Gemini
                 const responseText = await callGeminiAPI(userMsg, products);
                 
                 setMessages(prev => [...prev, { role: 'model', text: responseText }]);
@@ -615,7 +588,6 @@
 
             return (
                 <div className="fixed bottom-24 right-6 w-80 md:w-96 h-[500px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-slate-700 z-50 animate-in">
-                    {/* Header Chat */}
                     <div className="bg-emerald-600 p-4 flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -629,7 +601,6 @@
                         <button onClick={onClose} className="text-white/80 hover:text-white"><Icons.X className="w-5 h-5" /></button>
                     </div>
 
-                    {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-slate-950">
                         {messages.map((msg, idx) => (
                             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -656,7 +627,6 @@
                         <div ref={chatEndRef} />
                     </div>
 
-                    {/* Input Area */}
                     <div className="p-3 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-700 shrink-0">
                         <div className="relative">
                             <input
@@ -703,7 +673,6 @@
             const [favorites, setFavorites] = useState([]);
             const catalogRef = useRef(null);
 
-            // Estados Chat IA
             const [isChatOpen, setIsChatOpen] = useState(false);
             const [chatContextMsg, setChatContextMsg] = useState(null);
 
@@ -748,7 +717,7 @@
                         <nav className="relative z-10 px-6 py-6 flex justify-between items-center max-w-7xl mx-auto w-full">
                             <div className="flex items-center gap-3 animate-in">
                                 <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-glow">C</div>
-                                <span className="text-white font-bold text-xl tracking-tight hidden sm:block">CERTIS AGRO</span>
+                                <span className="text-white font-bold text-xl tracking-tight hidden sm:block"> AGRO</span>
                             </div>
                             <button onClick={() => setDarkMode(!darkMode)} className="p-2.5 rounded-full bg-white/10 backdrop-blur border border-white/10 text-white hover:bg-white/20 transition-colors">
                                 {darkMode ? <Icons.Sun className="w-5 h-5"/> : <Icons.Moon className="w-5 h-5"/>}
@@ -815,16 +784,36 @@
                             {filteredProducts.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {filteredProducts.map(product => (
-                                        <div key={product.id} onClick={() => setSelectedProduct(product)} className="group bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full relative">
+                                        <div
+                                            key={product.id}
+                                            onClick={() => setSelectedProduct(product)}
+                                            className="group bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-full relative"
+                                        >
                                             <div className="absolute top-4 left-4 z-10 flex gap-2 flex-col items-start">
-                                                <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold uppercase tracking-wider text-emerald-600 shadow-sm">{product.category}</span>
-                                                <div onClick={(e) => e.stopPropagation()}><ImageUploader product={product} onImageChange={updateProductImage} /></div>
+                                                <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 backdrop-blur text-[10px] font-bold uppercase tracking-wider text-emerald-600 shadow-sm">
+                                                    {product.category}
+                                                </span>
                                             </div>
-                                            <button onClick={(e) => toggleFavorite(e, product.id)} className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur transition-all duration-300 ${favorites.includes(product.id) ? 'bg-red-50 text-red-500 shadow-md' : 'bg-black/20 text-white hover:bg-white hover:text-red-500'}`}>
+                                            <button
+                                                onClick={(e) => toggleFavorite(e, product.id)}
+                                                className={`absolute top-4 right-4 z-10 p-2.5 rounded-full backdrop-blur transition-all duration-300 ${
+                                                    favorites.includes(product.id)
+                                                        ? 'bg-red-50 text-red-500 shadow-md'
+                                                        : 'bg-black/20 text-white hover:bg-white hover:text-red-500'
+                                                }`}
+                                            >
                                                 <Icons.Heart className="w-5 h-5" filled={favorites.includes(product.id)} />
                                             </button>
                                             <div className="h-56 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-                                                <img src={productImages[product.id] || product.image} alt={product.name} onError={(e) => {e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image"}} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                                <img
+                                                    src={productImages[product.id] || product.image}
+                                                    alt={product.name}
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image";
+                                                    }}
+                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                                />
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
                                                 <div className="absolute bottom-4 left-4 right-4">
                                                     <h3 className="text-2xl font-bold text-white mb-1 drop-shadow-md">{product.name}</h3>
@@ -838,10 +827,19 @@
                                                 </div>
                                                 <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-3 mb-6 flex-1">{product.description}</p>
                                                 <div className="flex flex-wrap gap-2 mb-6">
-                                                    {product.crops.slice(0,3).map((c, i) => (<span key={i} className="px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium border border-gray-100 dark:border-gray-700">{c}</span>))}
+                                                    {product.crops.slice(0,3).map((c, i) => (
+                                                        <span
+                                                            key={i}
+                                                            className="px-2.5 py-1 rounded-md bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium border border-gray-100 dark:border-gray-700"
+                                                        >
+                                                            {c}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                                 <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800">
-                                                    <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group-hover:gap-3 transition-all">Ver Detalles <Icons.ChevronRight className="w-4 h-4" /></span>
+                                                    <span className="text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 group-hover:gap-3 transition-all">
+                                                        Ver Detalles <Icons.ChevronRight className="w-4 h-4" />
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -849,10 +847,20 @@
                                 </div>
                             ) : (
                                 <div className="text-center py-20">
-                                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6"><Icons.Filter className="w-8 h-8 text-gray-400" /></div>
+                                    <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <Icons.Filter className="w-8 h-8 text-gray-400" />
+                                    </div>
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Sin resultados</h3>
                                     <p className="text-slate-500">Intenta cambiar los filtros o la búsqueda.</p>
-                                    <button onClick={() => {setSearchQuery(""); setSelectedCategory("Todos")}} className="mt-6 text-emerald-500 font-bold hover:underline">Limpiar Filtros</button>
+                                    <button
+                                        onClick={() => {
+                                            setSearchQuery("");
+                                            setSelectedCategory("Todos");
+                                        }}
+                                        className="mt-6 text-emerald-500 font-bold hover:underline"
+                                    >
+                                        Limpiar Filtros
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -862,14 +870,36 @@
                     <footer id="contacto" className="bg-slate-900 text-slate-400 py-12 lg:py-16">
                         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
                             <div className="col-span-1 md:col-span-2">
-                                <div className="flex items-center gap-3 mb-6 text-white"><div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center font-bold text-lg">C</div><span className="font-bold text-xl tracking-tight">CERTIS AGRO</span></div>
-                                <p className="leading-relaxed max-w-sm mb-6">Líderes en soluciones biorracionales innovadoras para la protección de cultivos, comprometidos con la agricultura sostenible y el medio ambiente.</p>
+                                <div className="flex items-center gap-3 mb-6 text-white">
+                                    <div className="w-8 h-8 bg-emerald-500 rounded flex items-center justify-center font-bold text-lg">C</div>
+                                    <span className="font-bold text-xl tracking-tight"> AGRO</span>
+                                </div>
+                                <p className="leading-relaxed max-w-sm mb-6">
+                                    Líderes en soluciones biorracionales innovadoras para la protección de cultivos, comprometidos con la agricultura sostenible y el medio ambiente.
+                                </p>
                             </div>
-                            <div><h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Enlaces Rápidos</h4><ul className="space-y-3 text-sm">{['Inicio', 'Catálogo', 'Sustentabilidad', 'Contacto'].map(item => (<li key={item}><a href="#" className="hover:text-emerald-400 transition-colors">{item}</a></li>))}</ul></div>
-                            <div><h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Contacto</h4><ul className="space-y-3 text-sm"><li>Av. Vallarta 1234, GDL, MX</li><li>contacto@certisagro.com</li></ul></div>
+                            <div>
+                                <h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Enlaces Rápidos</h4>
+                                <ul className="space-y-3 text-sm">
+                                    {['Inicio', 'Catálogo', 'Sustentabilidad', 'Contacto'].map(item => (
+                                        <li key={item}>
+                                            <a href="#" className="hover:text-emerald-400 transition-colors">
+                                                {item}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 className="text-white font-bold mb-6 uppercase tracking-wider text-sm">Contacto</h4>
+                                <ul className="space-y-3 text-sm">
+                                    <li>+52 1 443 792 4923</li>
+                                    <li>hola@agronare.com</li>
+                                </ul>
+                            </div>
                         </div>
                         <div className="max-w-7xl mx-auto px-6 pt-8 mt-12 border-t border-white/10 text-xs text-center md:text-left flex flex-col md:flex-row justify-between items-center">
-                            <p>&copy; 2025 Certis Agro México.</p>
+                            <p>&copy; 2025  Agro México.</p>
                             <p className="mt-2 md:mt-0">Powered by Gemini AI ✨</p>
                         </div>
                     </footer>
@@ -878,31 +908,95 @@
                     {selectedProduct && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in">
                             <div className="bg-white dark:bg-gray-900 w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
-                                <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 backdrop-blur transition-colors"><Icons.X className="w-6 h-6 text-slate-700 dark:text-white" /></button>
+                                <button
+                                    onClick={() => setSelectedProduct(null)}
+                                    className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 backdrop-blur transition-colors"
+                                >
+                                    <Icons.X className="w-6 h-6 text-slate-700 dark:text-white" />
+                                </button>
 
                                 <div className="w-full md:w-2/5 h-64 md:h-auto relative bg-gray-100 dark:bg-gray-800">
-                                    <img src={productImages[selectedProduct.id] || selectedProduct.image} className="w-full h-full object-cover" alt={selectedProduct.name} onError={(e) => {e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image"}} />
+                                    <img
+                                        src={productImages[selectedProduct.id] || selectedProduct.image}
+                                        className="w-full h-full object-cover"
+                                        alt={selectedProduct.name}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = "https://placehold.co/600x400/e2e8f0/1e293b?text=No+Image";
+                                        }}
+                                    />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent md:hidden"></div>
-                                    <div className="absolute bottom-4 left-4 md:hidden text-white"><h2 className="text-3xl font-bold">{selectedProduct.name}</h2><p className="opacity-80">{selectedProduct.type}</p></div>
+                                    <div className="absolute bottom-4 left-4 md:hidden text-white">
+                                        <h2 className="text-3xl font-bold">{selectedProduct.name}</h2>
+                                        <p className="opacity-80">{selectedProduct.type}</p>
+                                    </div>
                                 </div>
 
-                                <div className="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar bg-white dark:bg-gray-900">
+                                <div className="flex-1 p-8 md:p-10 overflow-y-auto bg-white dark:bg-gray-900">
                                     <div className="hidden md:block mb-6">
-                                        <div className="flex items-center gap-3 mb-2"><span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wide">{selectedProduct.category}</span><span className="text-slate-400 text-sm font-mono border-l pl-3 border-slate-200">{selectedProduct.type}</span></div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold uppercase tracking-wide">
+                                                {selectedProduct.category}
+                                            </span>
+                                            <span className="text-slate-400 text-sm font-mono border-l pl-3 border-slate-200">
+                                                {selectedProduct.type}
+                                            </span>
+                                        </div>
                                         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white">{selectedProduct.name}</h2>
                                     </div>
 
                                     <div className="space-y-8">
                                         <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingrediente Activo</p><p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{selectedProduct.activeIngredient}</p></div>
-                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Formulación</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.formulation || "N/A"}</p></div>
-                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Concentración</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.concentration || "N/A"}</p></div>
-                                            <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Presentación</p><p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{selectedProduct.presentation || "N/A"}</p></div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ingrediente Activo</p>
+                                                <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                                    {selectedProduct.activeIngredient}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Formulación</p>
+                                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                                    {selectedProduct.formulation || "N/A"}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Concentración</p>
+                                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                                    {selectedProduct.concentration || "N/A"}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Presentación</p>
+                                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                                    {selectedProduct.presentation || "N/A"}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div><h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2"><Icons.Info className="w-5 h-5 text-emerald-500" /> Descripción</h3><p className="text-slate-600 dark:text-slate-300 leading-relaxed">{selectedProduct.description}</p></div>
-                                        <div><h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Beneficios Clave</h3><ul className="grid gap-3">{selectedProduct.benefits.map((b, i) => (<li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/20"><Icons.CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" /><span className="text-sm font-medium text-slate-700 dark:text-slate-300">{b}</span></li>))}</ul></div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                                                <Icons.Info className="w-5 h-5 text-emerald-500" /> Descripción
+                                            </h3>
+                                            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                                                {selectedProduct.description}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Beneficios Clave</h3>
+                                            <ul className="grid gap-3">
+                                                {selectedProduct.benefits.map((b, i) => (
+                                                    <li
+                                                        key={i}
+                                                        className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/20"
+                                                    >
+                                                        <Icons.CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                            {b}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
                                         
-                                        {/* BOTÓN IA EN MODAL */}
                                         <button 
                                             onClick={() => openProductChat(selectedProduct.name)}
                                             className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95 mb-2"
@@ -911,8 +1005,29 @@
                                         </button>
 
                                         <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                                            <button onClick={() => generatePDF(selectedProduct, productImages[selectedProduct.id] || selectedProduct.image)} className="flex-1 py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"><Icons.FileText className="w-5 h-5" /> Descargar Ficha</button>
-                                            <a href={`https://wa.me/?text=Me interesa ${selectedProduct.name}`} target="_blank" className="flex-1 py-3.5 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95"><Icons.Share className="w-5 h-5" /> WhatsApp</a>
+                                            <button
+                                                onClick={() =>
+                                                    generatePDF(
+                                                        selectedProduct,
+                                                        productImages[selectedProduct.id] || selectedProduct.image
+                                                    )
+                                                }
+                                                className="flex-1 py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95"
+                                            >
+                                                <Icons.FileText className="w-5 h-5" /> Descargar Ficha
+                                            </button>
+                                            
+                                            {/* BOTÓN WHATSAPP ACTUALIZADO (comentario en sintaxis JSX) */}
+                                            <a
+                                                href={`https://wa.me/524437924923?text=${encodeURIComponent(
+                                                    `Hola, me gustaría recibir información técnica y una cotización del producto "${selectedProduct.name}" del catálogo digital de  Agro. Muchas gracias por su atención.`
+                                                )}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 py-3.5 rounded-xl bg-emerald-500 text-white font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95"
+                                            >
+                                                <Icons.Share className="w-5 h-5" /> WhatsApp
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
